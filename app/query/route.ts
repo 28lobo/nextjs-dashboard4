@@ -1,26 +1,37 @@
-// import postgres from 'postgres';
+import postgres from 'postgres';
+import { NextResponse } from 'next/server';
 
-// const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+// ensure we run in a Node.js runtime so the postgres client works
+export const runtime = 'nodejs';
 
-// async function listInvoices() {
-// 	const data = await sql`
-//     SELECT invoices.amount, customers.name
-//     FROM invoices
-//     JOIN customers ON invoices.customer_id = customers.id
-//     WHERE invoices.amount = 666;
-//   `;
+const sql = postgres(process.env.POSTGRES_URL!, {
+  ssl: { require: true, rejectUnauthorized: false },
+  // debug: true, // uncomment to see every query in your server logs
+});
 
-// 	return data;
-// }
+async function listInvoices() {
+  try {
+    return await sql`
+      SELECT i.amount, c.name
+      FROM invoices AS i
+      JOIN customers AS c ON i.customer_id = c.id
+      WHERE i.amount = ${666}
+    `;
+  } catch (err) {
+    console.error('[listInvoices] SQL error:', (err as any).name, (err as any).code, (err as any).message);
+    throw err;
+  }
+}
 
 export async function GET() {
-  return Response.json({
-    message:
-      'Uncomment this file and remove this line. You can delete this file when you are finished.',
-  });
-  // try {
-  // 	return Response.json(await listInvoices());
-  // } catch (error) {
-  // 	return Response.json({ error }, { status: 500 });
-  // }
+  try {
+    const data = await listInvoices();
+    return NextResponse.json(data);
+  } catch (err: any) {
+    // now we include the message for better diagnostics
+    return NextResponse.json(
+      { error: { name: err.name, code: err.code, message: err.message } },
+      { status: 500 }
+    );
+  }
 }
